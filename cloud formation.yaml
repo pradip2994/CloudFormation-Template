@@ -1,64 +1,79 @@
+Parameters:
+  SecurityGroupDescription:
+    Description: Security Group Description
+    Type: String
 
- ## CREATING VPC 
 Resources:
+  MyKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: my-key
+ # EC2 security group
+  MyPublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH and HTTP
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0  # Replace with your desired source IP range
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0  # Replace with your desired source IP range       
+ # CREATING VPC   
   MyVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16 # Replace with your desired CIDR block
-      Tags:
-        - Key: Name
-          Value: MyDemoVPC
- 
  # Internet Gateway
   MyInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: MyDemoInternetGateway
-  MyVPCGatewayAttachment:
+          Value: MyInternetGateway      
+  MyInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref MyVPC # Reference the VPC resource
       InternetGatewayId: !Ref MyInternetGateway # Reference the internet gateway resource
-
  # My Public and Private Subnet
   MyPublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref MyVPC # Reference the VPC resource
       CidrBlock: "10.0.1.0/24" # Replace with your desired CIDR block
-      AvailabilityZone: "us-east-1a" # Replace with your desired availability zone
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: PublicSubnet
+      AvailabilityZone: "ap-south-1a" # Replace with your desired availability zone
+            
   MyPrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref MyVPC # Reference the VPC resource
       CidrBlock: "10.0.3.0/24" # Replace with your desired CIDR block
-      AvailabilityZone: "us-east-1a" # Replace with your desired availability zone
-      Tags:
-        - Key: Name
-          Value: PrivateSubnet
-
+      AvailabilityZone: "ap-south-1a" # Replace with your desired availability zone      
  # My Route Table
   MyPublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref MyVPC # Reference the VPC resource
-      Tags:
-        - Key: Name
-          Value: MyPublicRouteTable
+      VpcId: !Ref MyVPC # Reference the VPC resource      
   MyPrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref MyVPC # Reference the VPC resource
-      Tags:
-        - Key: Name
-          Value: MyPrivateRouteTable
-
+      VpcId: !Ref MyVPC # Reference the VPC resource      
+ # Associate the public subnet with the public route table
+  MyPublicSubnetAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPublicSubnet
+      RouteTableId: !Ref MyPublicRouteTable
+ # Associate the private subnet with the private route table
+  MyPrivateSubnetAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPrivateSubnet
+      RouteTableId: !Ref MyPrivateRouteTable
  # Create a public route to the Internet Gateway
   MyPublicRoute:
     Type: AWS::EC2::Route
@@ -67,72 +82,27 @@ Resources:
       RouteTableId: !Ref MyPublicRouteTable
       DestinationCidrBlock: "0.0.0.0/0"
       GatewayId: !Ref MyInternetGateway
-
- # Associate the public subnet with the public route table
-  MyPublicSubnetAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref MyPublicSubnet
-      RouteTableId: !Ref MyPublicRouteTable
-
- # Associate the private subnet with the private route table
-  MyPrivateSubnetAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref MyPrivateSubnet
-      RouteTableId: !Ref MyPrivateRouteTable
-
-## CREATING PUBLIC AND PRIVATE EC2 INSTANCE ##
-
-# create a public EC2 instance in public subnet
+ # CREATING PUBLIC AND PRIVATE EC2 INSTANCE 
+ # create a public EC2 instance in public subnet
   MyPublicInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro  # Replace with your desired instance type
-      ImageId: ami-07d3a50bd29811cd1  # Replace with your desired AMI ID
-      KeyName: my-keypair  # Replace with the name of your key pair
-      SubnetId: !Ref MyPublicSubnet
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true
-          DeviceIndex: 0
-          DeleteOnTermination: true
-          GroupSet:
-            - !Ref MySecurityGroup
-      Tags:
-        - Key: Name
-          Value: PublicEC2Instance
+      ImageId: ami-057752b3f1d6c4d6c  # Replace with your desired AMI ID
+      KeyName: !Ref MyKeyPair  # Replace with the name of your key pair
+      
       SecurityGroupIds:
-        - !Ref MySecurityGroup  # Reference the security group resource
-
-# create a private EC2 instance in private subnet
+        - !Ref MyPublicSecurityGroup
+      
+ # create a private EC2 instance in private subnet
   MyPrivateInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro # Replace with your desired instance type
-      ImageId: ami-07d3a50bd29811cd1 # Replace with your desired AMI ID
-      KeyName: my-keypair # Replace with the name of your key pair
-      SubnetId: !Ref MyPrivateSubnet
-      Tags:
-        - Key: Name
-          Value: PrivateEC2Instance
-      SecurityGroupIds:
-        - !Ref MySecurityGroup
-        
- # EC2 security group
-  MySecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Enable SSH access via port 22
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0  # Replace with your desired source IP range
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0  # Replace with your desired source IP range
-
+      ImageId: ami-057752b3f1d6c4d6c # Replace with your desired AMI ID
+      KeyName: !Ref MyKeyPair # Replace with the name of your key pair
+      SubnetId: !Ref MyPrivateSubnet 
+          
  # An elastic IP for our Publicinstance
   MyEIP:
     Type: AWS::EC2::EIP
